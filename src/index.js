@@ -66,4 +66,11 @@ client.on('interactionCreate', async (interaction) => {
 client.login(process.env.DISCORD_TOKEN);
 
 const http = require('http');
-http.createServer((req, res) => res.end('Bot is running!')).listen(process.env.PORT || 3000);
+const PORT = process.env.PORT || 3000;
+
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Bot is running');
+}).listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
+});
