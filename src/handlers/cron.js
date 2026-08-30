@@ -5,13 +5,13 @@ const { buildUnpaidListEmbed } = require('./embeds');
 function startTaxCron(client) {
   // 매일 00:00 (Asia/Seoul 기준)
   cron.schedule('0 0 * * *', async () => {
-    const guilds = db.prepare('SELECT guild_id, tax_channel_id FROM guild_settings WHERE tax_channel_id IS NOT NULL').all();
+    const guilds = await db.prepare('SELECT guild_id, tax_channel_id FROM guild_settings WHERE tax_channel_id IS NOT NULL').all();
 
     for (const g of guilds) {
       try {
         const channel = await client.channels.fetch(g.tax_channel_id).catch(() => null);
         if (!channel) continue;
-        const embed = buildUnpaidListEmbed(g.guild_id);
+        const embed = await buildUnpaidListEmbed(g.guild_id);
         await channel.send({ embeds: [embed] });
       } catch (e) {
         console.error(`[cron] 길드 ${g.guild_id} 미납자 목록 게시 실패:`, e);

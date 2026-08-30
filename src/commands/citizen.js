@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { db } = require('../database');
 
 module.exports = {
@@ -42,12 +42,12 @@ module.exports = {
       const user = interaction.options.getUser('디코');
       const role = interaction.options.getString('직급') || 'citizen';
 
-      const exists = db.prepare('SELECT * FROM citizens WHERE guild_id = ? AND mc_nick = ? AND active = 1').get(guildId, mcNick);
+      const exists = await db.prepare('SELECT * FROM citizens WHERE guild_id = ? AND mc_nick = ? AND active = 1').get(guildId, mcNick);
       if (exists) {
-        return interaction.reply({ content: `⚠️ 이미 등록된 마크닉입니다: \`${mcNick}\``, ephemeral: true });
+        return interaction.reply({ content: `⚠️ 이미 등록된 마크닉입니다: \`${mcNick}\``, flags: MessageFlags.Ephemeral });
       }
 
-      db.prepare('INSERT INTO citizens (guild_id, mc_nick, discord_id, role) VALUES (?, ?, ?, ?)')
+      await db.prepare('INSERT INTO citizens (guild_id, mc_nick, discord_id, role) VALUES (?, ?, ?, ?)')
         .run(guildId, mcNick, user.id, role);
 
       return interaction.reply(`✅ 시민 등록 완료: \`${mcNick}\` (${role === 'king' ? '👑 왕' : '🛡️ 시민'}) — <@${user.id}>`);
@@ -55,12 +55,12 @@ module.exports = {
 
     if (sub === '제거') {
       const mcNick = interaction.options.getString('마크닉');
-      const row = db.prepare('SELECT * FROM citizens WHERE guild_id = ? AND mc_nick = ? AND active = 1').get(guildId, mcNick);
+      const row = await db.prepare('SELECT * FROM citizens WHERE guild_id = ? AND mc_nick = ? AND active = 1').get(guildId, mcNick);
       if (!row) {
-        return interaction.reply({ content: `❌ 등록되지 않은 마크닉입니다: \`${mcNick}\``, ephemeral: true });
+        return interaction.reply({ content: `❌ 등록되지 않은 마크닉입니다: \`${mcNick}\``, flags: MessageFlags.Ephemeral });
       }
-      db.prepare('UPDATE citizens SET active = 0 WHERE id = ?').run(row.id);
-      db.prepare('DELETE FROM presence WHERE guild_id = ? AND discord_id = ?').run(guildId, row.discord_id);
+      await db.prepare('UPDATE citizens SET active = 0 WHERE id = ?').run(row.id);
+      await db.prepare('DELETE FROM presence WHERE guild_id = ? AND discord_id = ?').run(guildId, row.discord_id);
 
       return interaction.reply(`🗑️ 시민 제거 완료: \`${mcNick}\``);
     }
@@ -71,15 +71,15 @@ module.exports = {
       const newUser = interaction.options.getUser('새디코');
       const newRole = interaction.options.getString('직급');
 
-      const row = db.prepare('SELECT * FROM citizens WHERE guild_id = ? AND mc_nick = ? AND active = 1').get(guildId, mcNick);
+      const row = await db.prepare('SELECT * FROM citizens WHERE guild_id = ? AND mc_nick = ? AND active = 1').get(guildId, mcNick);
       if (!row) {
-        return interaction.reply({ content: `❌ 등록되지 않은 마크닉입니다: \`${mcNick}\``, ephemeral: true });
+        return interaction.reply({ content: `❌ 등록되지 않은 마크닉입니다: \`${mcNick}\``, flags: MessageFlags.Ephemeral });
       }
       if (!newNick && !newUser && !newRole) {
-        return interaction.reply({ content: '⚠️ 변경할 항목을 하나 이상 입력해주세요.', ephemeral: true });
+        return interaction.reply({ content: '⚠️ 변경할 항목을 하나 이상 입력해주세요.', flags: MessageFlags.Ephemeral });
       }
 
-      db.prepare(`
+      await db.prepare(`
         UPDATE citizens SET
           mc_nick = COALESCE(?, mc_nick),
           discord_id = COALESCE(?, discord_id),
@@ -89,10 +89,10 @@ module.exports = {
 
       // 접속 중이던 경우 presence 테이블도 동기화
       if (newUser || newRole) {
-        const pres = db.prepare('SELECT * FROM presence WHERE guild_id = ? AND discord_id = ?').get(guildId, row.discord_id);
+        const pres = await db.prepare('SELECT * FROM presence WHERE guild_id = ? AND discord_id = ?').get(guildId, row.discord_id);
         if (pres) {
-          db.prepare('DELETE FROM presence WHERE guild_id = ? AND discord_id = ?').run(guildId, row.discord_id);
-          db.prepare('INSERT OR REPLACE INTO presence (guild_id, discord_id, role) VALUES (?, ?, ?)')
+          await db.prepare('DELETE FROM presence WHERE guild_id = ? AND discord_id = ?').run(guildId, row.discord_id);
+          await db.prepare('INSERT OR REPLACE INTO presence (guild_id, discord_id, role) VALUES (?, ?, ?)')
             .run(guildId, newUser ? newUser.id : row.discord_id, newRole || pres.role);
         }
       }

@@ -1,7 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const { db, getGuildSettings } = require('../database');
-const { buildTaxInfoEmbed } = require('../handlers/embeds');
-const { taxInfoButtons } = require('../handlers/components');
+const { refreshTaxInfoBanner } = require('../handlers/embeds');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -20,13 +19,12 @@ module.exports = {
 
     if (sub === '세금채널') {
       const channel = interaction.options.getChannel('채널');
-      getGuildSettings(guildId);
-      db.prepare('UPDATE guild_settings SET tax_channel_id = ? WHERE guild_id = ?').run(channel.id, guildId);
+      await getGuildSettings(guildId);
+      await db.prepare('UPDATE guild_settings SET tax_channel_id = ? WHERE guild_id = ?').run(channel.id, guildId);
 
       await interaction.reply(`✅ 세금 채널이 ${channel} (으)로 설정되었습니다. 안내 메시지를 게시합니다...`);
 
-      const embed = buildTaxInfoEmbed(guildId);
-      await channel.send({ embeds: [embed], components: taxInfoButtons() });
+      await refreshTaxInfoBanner(channel, guildId);
     }
   },
 };
